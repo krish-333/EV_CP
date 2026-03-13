@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>EV Decision Engine</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+:root{
+--bg:#0B0B12;
+--card:#12121A;
+--accent:#8B5CF6;
+--accent-light:#A78BFA;
+--text:#E5E7EB;
+--muted:#9CA3AF;
+}
+
+*{
+box-sizing:border-box;
+font-family:Inter,system-ui,Arial;
+}
+
+body{
+margin:0;
+background:linear-gradient(145deg,#0B0B12,#141426);
+color:var(--text);
+}
+
+.container{
+max-width:1100px;
+margin:auto;
+padding:48px 24px;
+}
+
+h1{
+text-align:center;
+font-weight:600;
+font-size:32px;
+letter-spacing:0.5px;
+margin-bottom:40px;
+}
+
+.card{
+background:var(--card);
+padding:32px;
+border-radius:18px;
+margin-bottom:32px;
+box-shadow:0 20px 40px rgba(0,0,0,0.5);
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:24px;
+}
+
+label{
+font-size:13px;
+color:var(--muted);
+margin-bottom:6px;
+display:block;
+}
+
+input{
+width:100%;
+height:44px;
+padding:12px;
+border-radius:10px;
+border:1px solid #1f1f2e;
+background:#0f0f18;
+color:white;
+font-size:14px;
+margin-bottom:16px;
+transition:0.2s;
+}
+
+input:focus{
+outline:none;
+border-color:var(--accent);
+box-shadow:0 0 0 2px rgba(139,92,246,0.25);
+}
+
+button{
+width:100%;
+padding:14px;
+border-radius:12px;
+border:none;
+background:linear-gradient(135deg,#8B5CF6,#6D28D9);
+color:white;
+font-weight:600;
+font-size:15px;
+cursor:pointer;
+transition:0.25s;
+}
+
+button:hover{
+transform:translateY(-1px);
+box-shadow:0 6px 18px rgba(139,92,246,0.4);
+}
+
+.results{
+text-align:center;
+}
+
+#gauge{
+font-size:48px;
+font-weight:700;
+color:var(--accent-light);
+margin-top:10px;
+}
+
+.recommendation{
+margin-top:12px;
+font-size:18px;
+color:#d4d4ff;
+}
+
+.chart-grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:32px;
+}
+
+canvas{
+max-height:340px;
+}
+
+h3{
+margin-top:0;
+font-weight:500;
+}
+
+@media(max-width:800px){
+
+.grid{
+grid-template-columns:1fr;
+}
+
+.chart-grid{
+grid-template-columns:1fr;
+}
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>EV vs ICE Decision Dashboard</h1>
+
+<div class="card">
+
+<div class="grid">
+
+<div>
+
+<label>ICE Vehicle Price (₹)</label>
+<input id="ice_price" placeholder="800000">
+
+<label>EV Price (₹)</label>
+<input id="ev_price" placeholder="1400000">
+
+<label>ICE Mileage (km/l)</label>
+<input id="mileage" placeholder="15">
+
+<label>EV Range (km)</label>
+<input id="range" placeholder="350">
+
+</div>
+
+<div>
+
+<label>Battery Size (kWh)</label>
+<input id="battery" placeholder="40">
+
+<label>Daily Distance (km)</label>
+<input id="distance" placeholder="30">
+
+<label>Petrol Price (₹/L)</label>
+<input id="petrol" placeholder="105">
+
+<label>Electricity Price (₹/kWh)</label>
+<input id="electricity" placeholder="8">
+
+</div>
+
+</div>
+
+<button onclick="calculate()">Analyze Vehicle</button>
+
+</div>
+
+
+<div class="card results">
+
+<h2>Green Score</h2>
+
+<div id="gauge">0 / 50</div>
+
+<div class="recommendation" id="recommendation"></div>
+
+</div>
+
+
+<div class="chart-grid">
+
+<div class="card">
+<h3>Cost Comparison</h3>
+<canvas id="costChart"></canvas>
+</div>
+
+<div class="card">
+<h3>Emission Comparison</h3>
+<canvas id="emissionChart"></canvas>
+</div>
+
+</div>
+
+</div>
+
+
+<script>
+
+let costChart
+let emissionChart
+
+function calculate(){
+
+let ice_price=parseFloat(document.getElementById("ice_price").value)
+let ev_price=parseFloat(document.getElementById("ev_price").value)
+let mileage=parseFloat(document.getElementById("mileage").value)
+let range=parseFloat(document.getElementById("range").value)
+let battery=parseFloat(document.getElementById("battery").value)
+let distance=parseFloat(document.getElementById("distance").value)
+let petrol=parseFloat(document.getElementById("petrol").value)
+let electricity=parseFloat(document.getElementById("electricity").value)
+
+if(!ice_price||!ev_price||!mileage||!range||!battery||!distance||!petrol||!electricity){
+alert("Please fill all fields")
+return
+}
+
+let annual_distance=distance*365
+
+let ev_consumption=battery/range
+
+let ice_cost_km=petrol/mileage
+let ev_cost_km=electricity*ev_consumption
+
+let ice_annual=ice_cost_km*annual_distance
+let ev_annual=ev_cost_km*annual_distance
+
+let savings=ice_annual-ev_annual
+
+let petrol_emission=2.31
+let electricity_emission=0.7
+
+let ice_emission=(annual_distance/mileage)*petrol_emission
+let ev_emission=annual_distance*ev_consumption*electricity_emission
+
+let reduction=ice_emission-ev_emission
+
+let payback=(ev_price-ice_price)/savings
+
+let reduction_percent=(reduction/ice_emission)*100
+
+let emission_score=reduction_percent>60?20:reduction_percent>40?15:reduction_percent>20?10:5
+let cost_score=savings>60000?20:savings>30000?15:savings>10000?10:5
+let payback_score=payback<=3?10:payback<=5?7:payback<=7?5:2
+
+let green_score=emission_score+cost_score+payback_score
+
+let score=0
+let interval=setInterval(()=>{
+score++
+document.getElementById("gauge").innerHTML=score+" / 50"
+if(score>=green_score)clearInterval(interval)
+},25)
+
+document.getElementById("recommendation").innerHTML=
+green_score>=40?"Switching to EV is highly beneficial":
+green_score>=30?"EV is a good option depending on usage":
+green_score>=20?"EV offers moderate benefit":
+"ICE vehicle may be more practical"
+
+
+if(costChart)costChart.destroy()
+
+costChart=new Chart(document.getElementById("costChart"),{
+type:"doughnut",
+data:{
+labels:["ICE Annual Cost","EV Annual Cost"],
+datasets:[{
+data:[ice_annual,ev_annual],
+backgroundColor:["#FF4D6D","#8B5CF6"],
+borderWidth:0
+}]
+},
+options:{
+plugins:{legend:{labels:{color:"white"}}},
+cutout:"72%"
+}
+})
+
+if(emissionChart)emissionChart.destroy()
+
+emissionChart=new Chart(document.getElementById("emissionChart"),{
+type:"doughnut",
+data:{
+labels:["ICE Emissions","EV Emissions"],
+datasets:[{
+data:[ice_emission,ev_emission],
+backgroundColor:["#FF4D6D","#8B5CF6"],
+borderWidth:0
+}]
+},
+options:{
+plugins:{legend:{labels:{color:"white"}}},
+cutout:"72%"
+}
+})
+
+}
+
+</script>
+
+</body>
+</html>
